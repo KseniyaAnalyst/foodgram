@@ -4,3 +4,4 @@ djoser
 Pillow
 psycopg2-binary
 django-filter
+gunicorn
