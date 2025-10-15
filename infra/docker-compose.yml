@@ -2,7 +2,7 @@ version: '3.3'
 
 services:
   db:
-    image: postgres:13.10
+    image: postgres:14.11
     container_name: foodgram-db
     env_file:
       - .env
