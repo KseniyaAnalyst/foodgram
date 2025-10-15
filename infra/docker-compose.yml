@@ -9,6 +9,11 @@ services:
     volumes:
       - ../data/postgres_data:/var/lib/postgresql/data/
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     image: ${DOCKER_USERNAME}/foodgram_backend:latest
@@ -16,7 +21,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ../backend/media:/app/media
       - ../backend/static:/app/static
