@@ -45,7 +45,7 @@ services:
       - "8080:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ../frontend/result_build:/usr/share/nginx/html/
+      - ../frontend/result_build/build:/usr/share/nginx/html/
       - ../docs/:/usr/share/nginx/html/api/docs/
       - ../backend/media:/app/media
       - ../backend/static:/app/static
