@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from recipes.models import Tag, Ingredient, Recipe, RecipeIngredient
-from users.models import CustomUser
+# from users.models import CustomUser
 from recipes.models import Favorite, ShoppingCart
 
 

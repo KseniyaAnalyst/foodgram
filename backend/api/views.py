@@ -69,7 +69,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(
+        detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):
         user = request.user
         recipe = self.get_object()
@@ -84,7 +85,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         Favorite.objects.filter(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(
+        detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
         user = request.user
         recipe = self.get_object()
@@ -99,7 +101,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ShoppingCart.objects.filter(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(
+        detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
         user = request.user
         ingredients = (
