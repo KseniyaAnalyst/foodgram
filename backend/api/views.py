@@ -41,15 +41,18 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class RecipeFilter(FilterSet):
-    tags = filters.AllValuesMultipleFilter(field_name='tags__slug')
+    tags = filters.AllValuesMultipleFilter(
+        field_name='tags__slug')
     author = filters.NumberFilter(field_name='author__id')
-    is_favorited = filters.BooleanFilter(method='filter_is_favorited')
+    is_favorited = filters.BooleanFilter(
+        method='filter_is_favorited')
     is_in_shopping_cart = filters.BooleanFilter(
         method='filter_is_in_shopping_cart')
 
     class Meta:
         model = Recipe
-        fields = ['tags', 'author', 'is_favorited', 'is_in_shopping_cart']
+        fields = ['tags', 'author', 'is_favorited',
+        'is_in_shopping_cart']
 
     def filter_is_favorited(self, queryset, name, value):
         user = getattr(self.request, 'user', None)
@@ -68,12 +71,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = (
         Recipe.objects
         .select_related('author')
-        .prefetch_related('tags', 'recipeingredient_set__ingredient')
+        .prefetch_related(
+            'tags', 'recipeingredient_set__ingredient')
         .order_by('-pub_date')
     )
     serializer_class = RecipeSerializer
 
-    permission_classes = (IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly)
+    permission_classes = (
+        IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly)
 
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
@@ -89,7 +94,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe = self.get_object()
         Favorite.objects.get_or_create(user=user, recipe=recipe)
         serializer = ShortRecipeSerializer(recipe)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED)
 
     @favorite.mapping.delete
     def unfavorite(self, request, pk=None):
@@ -135,6 +141,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             for ing in ingredients
         ]
         content = '\n'.join(lines) if lines else 'Список пуст.'
-        response = HttpResponse(content, content_type='text/plain; charset=utf-8')
-        response['Content-Disposition'] = 'attachment; filename=\"shopping_list.txt\"'
+        response = HttpResponse(
+            content, content_type='text/plain; charset=utf-8')
+        response['Content-Disposition'] =
+        'attachment; filename=\"shopping_list.txt\"'
         return response
