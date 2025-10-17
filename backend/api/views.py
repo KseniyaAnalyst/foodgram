@@ -143,6 +143,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         content = '\n'.join(lines) if lines else 'Список пуст.'
         response = HttpResponse(
             content, content_type='text/plain; charset=utf-8')
-        response['Content-Disposition'] =
-        'attachment; filename=\"shopping_list.txt\"'
+        response['Content-Disposition'] = (
+            'attachment; filename=\"shopping_list.txt\"')
         return response
