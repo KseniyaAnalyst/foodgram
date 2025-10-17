@@ -7,10 +7,13 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv(
-    'ALLOWED_HOSTS',
-    'foodgramkka.hopto.org,localhost,127.0.0.1,backend,84.201.166.37')
+ALLOWED_HOSTS = (
+    os.getenv(
+        'ALLOWED_HOSTS',
+        'foodgramkka.hopto.org,localhost,127.0.0.1,backend,84.201.166.37',
+    )
     .split(',')
+)
 
 
 INSTALLED_APPS = [
