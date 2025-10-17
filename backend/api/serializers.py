@@ -9,6 +9,7 @@ from recipes.models import (
     Tag, Ingredient, Recipe,
     RecipeIngredient, Favorite, ShoppingCart)
 
+
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
         if isinstance(data, str) and data.startswith('data:image'):
@@ -19,15 +20,18 @@ class Base64ImageField(serializers.ImageField):
                 base64.b64decode(imgstr), name=f'{id}.{ext}')
         return super().to_internal_value(data)
 
+
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ('id', 'name', 'color', 'slug')
 
+
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
+
 
 class RecipeIngredientReadSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='ingredient.id')
@@ -39,9 +43,11 @@ class RecipeIngredientReadSerializer(serializers.ModelSerializer):
         model = RecipeIngredient
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
+
 class RecipeIngredientWriteSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     amount = serializers.IntegerField()
+
 
 class RecipeSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
@@ -106,15 +112,18 @@ class RecipeSerializer(serializers.ModelSerializer):
                 amount=ingredient['amount']
             )
 
+
 class ShortRecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
 
+
 class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favorite
         fields = ('user', 'recipe')
+
 
 class ShoppingCartSerializer(serializers.ModelSerializer):
     class Meta:
