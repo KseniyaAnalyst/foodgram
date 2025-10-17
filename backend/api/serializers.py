@@ -2,7 +2,8 @@ from django.db import transaction
 from rest_framework import serializers
 
 from recipes.models import (
-    Tag, Ingredient, Recipe, RecipeIngredient, Favorite, ShoppingCart
+    Tag, Ingredient, Recipe,
+    RecipeIngredient, Favorite, ShoppingCart
 )
 
 
@@ -21,8 +22,7 @@ class IngredientSerializer(serializers.ModelSerializer):
 class RecipeIngredientReadSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
-    measurement_unit = serializers.ReadOnlyField(
-        source='ingredient.measurement_unit')
+    measurement_unit = serializers.ReadOnlyField(source='ingredient.measurement_unit')
 
     class Meta:
         model = RecipeIngredient
@@ -35,9 +35,15 @@ class RecipeIngredientWriteSerializer(serializers.Serializer):
 
     def validate_amount(self, value):
         if value < 1:
-            raise serializers.ValidationError(
-                "Количество ингредиента должно быть > 0.")
+            raise serializers.ValidationError("Количество ингредиента должно быть > 0.")
         return value
+
+
+class ShortRecipeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'image', 'cooking_time')
+        read_only_fields = fields
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -62,16 +68,22 @@ class RecipeSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'author', 'pub_date')
 
     def get_is_favorited(self, obj):
-        user = self.context.get('request').user
-        if not user or user.is_anonymous:
+        user = self._user()
+        if not user:
             return False
         return Favorite.objects.filter(user=user, recipe=obj).exists()
 
     def get_is_in_shopping_cart(self, obj):
-        user = self.context.get('request').user
-        if not user or user.is_anonymous:
+        user = self._user()
+        if not user:
             return False
         return ShoppingCart.objects.filter(user=user, recipe=obj).exists()
+
+    def _user(self):
+        req = self.context.get('request')
+        if not req or not hasattr(req, 'user') or req.user.is_anonymous:
+            return None
+        return req.user
 
     def validate(self, attrs):
         tags = attrs.get('tags', [])
@@ -85,12 +97,14 @@ class RecipeSerializer(serializers.ModelSerializer):
         if not ingredients:
             raise serializers.ValidationError({"ingredients": "Нужен хотя бы один ингредиент."})
 
-        ing_ids = []
+        seen = set()
         for item in ingredients:
             iid = int(item['id'])
-            if iid in ing_ids:
+            if iid in seen:
                 raise serializers.ValidationError({"ingredients": "Ингредиенты не должны повторяться."})
-            ing_ids.append(iid)
+            seen.add(iid)
+            if int(item.get('amount', 0)) < 1:
+                raise serializers.ValidationError({"ingredients": "Количество должно быть > 0."})
 
         if cooking_time is None or int(cooking_time) < 1:
             raise serializers.ValidationError({"cooking_time": "Время готовки должно быть > 0."})
@@ -130,12 +144,10 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def _set_ingredients(self, recipe, ingredients_data):
         bulk = []
-        id_to_obj = {
-            ing.id: ing for ing in Ingredient.objects.filter(
-                id__in=[int(i['id']) for i in ingredients_data]
-            )
-        }
-        missing = [i['id'] for i in ingredients_data if int(i['id']) not in id_to_obj]
+        requested_ids = [int(i['id']) for i in ingredients_data]
+        id_to_obj = {ing.id: ing for ing in Ingredient.objects.filter(id__in=requested_ids)}
+
+        missing = [iid for iid in requested_ids if iid not in id_to_obj]
         if missing:
             raise serializers.ValidationError({"ingredients": f"Нет ингредиентов с id: {missing}"})
 
