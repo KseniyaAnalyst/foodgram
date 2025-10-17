@@ -3,12 +3,11 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-skinb%s=xway6xw3#3hxb$3$wfbf=fok+vlqw*3*b_7c08x4e_'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', default='').split(',')
-
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS','foodgramkka.hopto.org,localhost,127.0.0.1,backend,84.201.166.37').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -103,8 +102,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = '/app/static'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = '/app/media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

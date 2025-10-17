@@ -3,7 +3,8 @@ from django.http import HttpResponse
 
 from rest_framework import status, viewsets
 from rest_framework.permissions import (
-    IsAuthenticatedOrReadOnly, IsAuthenticated)
+    IsAuthenticatedOrReadOnly,
+    IsAuthenticated, AllowAny)
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import (
@@ -20,17 +21,21 @@ from .serializers import (
     ShortRecipeSerializer
 )
 
+from .permissions import IsAuthorOrReadOnly
+
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     pagination_class = None
+    permission_classes = (AllowAny,)
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = None
+    permission_classes = (AllowAny,)
     filter_backends = [SearchFilter]
     search_fields = ['^name']
 
@@ -60,9 +65,16 @@ class RecipeFilter(FilterSet):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all().order_by('-pub_date')
+    queryset = (
+        Recipe.objects
+        .select_related('author')
+        .prefetch_related('tags', 'recipeingredient_set__ingredient')
+        .order_by('-pub_date')
+    )
     serializer_class = RecipeSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    permission_classes = (IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly)
+
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
 
@@ -70,7 +82,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
     @action(
-        detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+        detail=True, methods=['post'],
+        permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):
         user = request.user
         recipe = self.get_object()
@@ -86,7 +99,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
-        detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+        detail=True, methods=['post'],
+        permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
         user = request.user
         recipe = self.get_object()
@@ -102,30 +116,25 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
-        detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+        detail=False, methods=['get'],
+        permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
         user = request.user
         ingredients = (
             RecipeIngredient.objects
             .filter(recipe__shopping_cart__user=user)
-            .values(
-                'ingredient__name',
-                'ingredient__measurement_unit'
-            )
+            .values('ingredient__name', 'ingredient__measurement_unit')
             .annotate(amount_sum=models.Sum('amount'))
             .order_by('ingredient__name')
         )
 
-        lines = []
-        for ing in ingredients:
-            line = (
-                f"{ing['ingredient__name']} "
-                f"({ing['ingredient__measurement_unit']}) — "
-                f"{ing['amount_sum']}"
-            )
-            lines.append(line)
-        content = '\n'.join(lines)
-        response = HttpResponse(content, content_type='text/plain')
-        response[
-            'Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
+        lines = [
+            f"{ing['ingredient__name']} "
+            f"({ing['ingredient__measurement_unit']}) — "
+            f"{ing['amount_sum']}"
+            for ing in ingredients
+        ]
+        content = '\n'.join(lines) if lines else 'Список пуст.'
+        response = HttpResponse(content, content_type='text/plain; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename=\"shopping_list.txt\"'
         return response
