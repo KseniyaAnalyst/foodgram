@@ -1,9 +1,31 @@
 from django.db import transaction
 from rest_framework import serializers
+import base64
+import six
+import uuid
+from django.core.files.base import ContentFile
 
 from recipes.models import Tag, Ingredient, Recipe, RecipeIngredient
-# from users.models import CustomUser
 from recipes.models import Favorite, ShoppingCart
+
+class Base64ImageField(serializers.ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, six.string_types):
+            if 'data:' in data and ';base64,' in data:
+                header, data = data.split(';base64,')
+            try:
+                decoded_file = base64.b64decode(data)
+            except TypeError:
+                self.fail('invalid_image')
+
+            file_name = str(uuid.uuid4())[:12]
+            file_extension = 'jpg'
+            if header.startswith('data:image/'):
+                file_extension = header.split('/')[1]
+            complete_file_name = "%s.%s" % (file_name, file_extension)
+
+            data = ContentFile(decoded_file, name=complete_file_name)
+        return super().to_internal_value(data)
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -11,12 +33,10 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
         fields = ('id', 'name', 'color', 'slug')
 
-
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
-
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
@@ -34,14 +54,13 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
         model = RecipeIngredient
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
-
 class RecipeSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(), many=True
     )
     ingredients = RecipeIngredientSerializer(many=True)
     author = serializers.ReadOnlyField(source='author.email')
-    image = serializers.ImageField(required=True)
+    image = Base64ImageField(required=True)  # !!! ВОТ ТУТ !!!
 
     class Meta:
         model = Recipe
@@ -98,18 +117,15 @@ class RecipeSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
 class ShortRecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
 
-
 class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favorite
         fields = ('user', 'recipe')
-
 
 class ShoppingCartSerializer(serializers.ModelSerializer):
     class Meta:
