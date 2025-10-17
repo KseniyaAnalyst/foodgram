@@ -59,6 +59,5 @@
 
 ## Автор
 
-Ваше имя  
-Email: your@email.com  
+Ксения К.  
 GitHub: [github.com/KseniyaAnalyst](https://github.com/KseniyaAnalyst)
