@@ -157,9 +157,9 @@ class RecipeSerializer(serializers.ModelSerializer):
         bulk = []
         requested_ids = [int(i['id']) for i in ingredients_data]
         id_to_obj = {
-            ing.id: ing for ing in Ingredient.objects.filter(
-                id__in=requested_ids)
-                }
+            ing.id: ing
+            for ing in Ingredient.objects.filter(id__in=requested_ids)
+        }
 
         missing = [iid for iid in requested_ids if iid not in id_to_obj]
         if missing:
@@ -172,7 +172,8 @@ class RecipeSerializer(serializers.ModelSerializer):
             if amount < 1:
                 raise serializers.ValidationError(
                     {"ingredients": "Количество должно быть > 0."})
-            bulk.append(RecipeIngredient(
-                recipe=recipe, ingredient=ing, amount=amount)
-                )
+            bulk.append(
+                RecipeIngredient(
+                    recipe=recipe, ingredient=ing, amount=amount)
+            )
         RecipeIngredient.objects.bulk_create(bulk)
