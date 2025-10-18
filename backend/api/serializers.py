@@ -42,10 +42,19 @@ class RecipeIngredientWriteSerializer(serializers.Serializer):
 
 
 class ShortRecipeSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
         read_only_fields = fields
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        if not obj.image:
+            return ''
+        url = obj.image.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class RecipeSerializer(serializers.ModelSerializer):
