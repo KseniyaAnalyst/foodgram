@@ -7,9 +7,9 @@ from rest_framework.permissions import (
     IsAuthenticated, AllowAny)
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django_filters.rest_framework import (
-    DjangoFilterBackend, FilterSet, filters)
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
+from .filters import RecipeFilter
 
 from recipes.models import (
     Tag, Ingredient, Recipe,
@@ -19,8 +19,7 @@ from recipes.models import (
 from .serializers import (
     TagSerializer, IngredientSerializer, RecipeSerializer,
     ShortRecipeSerializer
-)
-
+, FavoriteCreateSerializer, ShoppingCartCreateSerializer)
 from .permissions import IsAuthorOrReadOnly
 
 
@@ -35,40 +34,9 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = None
+    filter_backends = (SearchFilter,)
+    search_fields = ('^name',)
     permission_classes = (AllowAny,)
-    filter_backends = [SearchFilter]
-    search_fields = ['^name']
-
-
-class RecipeFilter(FilterSet):
-    tags = filters.AllValuesMultipleFilter(
-        field_name='tags__slug')
-    author = filters.NumberFilter(field_name='author__id')
-    is_favorited = filters.BooleanFilter(
-        method='filter_is_favorited')
-    is_in_shopping_cart = filters.BooleanFilter(
-        method='filter_is_in_shopping_cart')
-
-    class Meta:
-        model = Recipe
-        fields = [
-            'tags',
-            'author',
-            'is_favorited',
-            'is_in_shopping_cart'
-        ]
-
-    def filter_is_favorited(self, queryset, name, value):
-        user = getattr(self.request, 'user', None)
-        if user and user.is_authenticated and value:
-            return queryset.filter(favorites__user=user)
-        return queryset
-
-    def filter_is_in_shopping_cart(self, queryset, name, value):
-        user = getattr(self.request, 'user', None)
-        if user and user.is_authenticated and value:
-            return queryset.filter(shopping_cart__user=user)
-        return queryset
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -84,22 +52,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = (
         IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly)
 
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
     @action(
-        detail=True, methods=['post'],
-        permission_classes=[IsAuthenticated])
+        detail=True, methods=('post',),
+        permission_classes=(IsAuthenticated,))
     def favorite(self, request, pk=None):
         user = request.user
         recipe = self.get_object()
-        Favorite.objects.get_or_create(user=user, recipe=recipe)
-        serializer = ShortRecipeSerializer(recipe)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED)
+        create_serializer = FavoriteCreateSerializer(
+            data={'user': user.id, 'recipe': recipe.id})
+        create_serializer.is_valid(raise_exception=True)
+        create_serializer.save()
+        response_serializer = ShortRecipeSerializer(recipe)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     @favorite.mapping.delete
     def unfavorite(self, request, pk=None):
@@ -109,14 +79,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
-        detail=True, methods=['post'],
-        permission_classes=[IsAuthenticated])
+        detail=True, methods=('post',),
+        permission_classes=(IsAuthenticated,))
     def shopping_cart(self, request, pk=None):
         user = request.user
         recipe = self.get_object()
-        ShoppingCart.objects.get_or_create(user=user, recipe=recipe)
-        serializer = ShortRecipeSerializer(recipe)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        create_serializer = ShoppingCartCreateSerializer(
+            data={'user': user.id, 'recipe': recipe.id})
+        create_serializer.is_valid(raise_exception=True)
+        create_serializer.save()
+        response_serializer = ShortRecipeSerializer(recipe)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     @shopping_cart.mapping.delete
     def remove_shopping_cart(self, request, pk=None):
@@ -126,8 +99,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
-        detail=False, methods=['get'],
-        permission_classes=[IsAuthenticated])
+        detail=False, methods=('get',),
+        permission_classes=(IsAuthenticated,))
     def download_shopping_cart(self, request):
         user = request.user
         ingredients = (
@@ -139,14 +112,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
         lines = [
-            f"{ing['ingredient__name']} "
-            f"({ing['ingredient__measurement_unit']}) — "
-            f"{ing['amount_sum']}"
+            f'{ing["ingredient__name"]} '
+            f'({ing["ingredient__measurement_unit"]}) — '
+            f'{ing["amount_sum"]}'
             for ing in ingredients
         ]
         content = '\n'.join(lines) if lines else 'Список пуст.'
         response = HttpResponse(
             content, content_type='text/plain; charset=utf-8')
         response['Content-Disposition'] = (
-            'attachment; filename=\"shopping_list.txt\"')
+            'attachment; filename="shopping_list.txt"' )
         return response

@@ -1,10 +1,10 @@
 from django.contrib import admin
 
-from .models import CustomUser, Follow
+from .models import User, Follow
 
 
-@admin.register(CustomUser)
-class CustomUserAdmin(admin.ModelAdmin):
+@admin.register(User)
+class UserAdminPanel(admin.ModelAdmin):
     list_display = ('email', 'username', 'first_name', 'last_name')
     search_fields = ('email', 'username')
 

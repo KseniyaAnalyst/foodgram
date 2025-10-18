@@ -37,7 +37,7 @@ class RecipeIngredientWriteSerializer(serializers.Serializer):
     def validate_amount(self, value):
         if value < 1:
             raise serializers.ValidationError(
-                "Количество ингредиента должно быть > 0.")
+                'Количество ингредиента должно быть > 0.')
         return value
 
 
@@ -49,19 +49,20 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    author = serializers.ReadOnlyField(source='author.username')
+    author = serializers.SlugRelatedField(
+        read_only=True, slug_field='username'
+    )
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(), many=True
     )
     ingredients = RecipeIngredientWriteSerializer(
-        many=True, write_only=True)
+        many=True, write_only=True
+    )
     ingredients_detail = RecipeIngredientReadSerializer(
         source='recipeingredient_set', many=True, read_only=True
     )
-    is_favorited = serializers.SerializerMethodField(
-        read_only=True)
-    is_in_shopping_cart = serializers.SerializerMethodField(
-        read_only=True)
+    is_favorited = serializers.SerializerMethodField(read_only=True)
+    is_in_shopping_cart = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Recipe
@@ -85,39 +86,47 @@ class RecipeSerializer(serializers.ModelSerializer):
         return ShoppingCart.objects.filter(user=user, recipe=obj).exists()
 
     def _user(self):
-        req = self.context.get('request')
-        if not req or not hasattr(req, 'user') or req.user.is_anonymous:
+        request_obj = self.context.get('request')
+        if (
+            not request_obj
+            or not hasattr(request_obj, 'user')
+            or request_obj.user.is_anonymous
+        ):
             return None
-        return req.user
+        return request_obj.user
 
     def validate(self, attrs):
         tags = attrs.get('tags', [])
         ingredients = attrs.get('ingredients', [])
         cooking_time = attrs.get('cooking_time')
 
-        tag_ids = [t.id if isinstance(t, Tag) else int(t) for t in tags]
+        tag_ids = [
+            tag.id if isinstance(tag, Tag) else int(tag)
+            for tag in tags
+        ]
         if len(tag_ids) != len(set(tag_ids)):
             raise serializers.ValidationError(
-                {"tags": "Теги не должны повторяться."})
+                {'tags': 'Теги не должны повторяться.'}
+            )
 
         if not ingredients:
             raise serializers.ValidationError(
-                {"ingredients": "Нужен хотя бы один ингредиент."})
+                {'ingredients': 'Нужен хотя бы один ингредиент.'}
+            )
 
         seen = set()
-        for item in ingredients:
-            iid = int(item['id'])
-            if iid in seen:
+        for ingredient_item in ingredients:
+            ingredient_id = int(ingredient_item['id'])
+            if ingredient_id in seen:
                 raise serializers.ValidationError(
-                    {"ingredients": "Ингредиенты не должны повторяться."})
-            seen.add(iid)
-            if int(item.get('amount', 0)) < 1:
-                raise serializers.ValidationError(
-                    {"ingredients": "Количество должно быть > 0."})
+                    {'ingredients': 'Ингредиенты не должны повторяться.'}
+                )
+            seen.add(ingredient_id)
 
         if cooking_time is None or int(cooking_time) < 1:
             raise serializers.ValidationError(
-                {"cooking_time": "Время готовки должно быть > 0."})
+                {'cooking_time': 'Время готовки должно быть > 0.'}
+            )
 
         return attrs
 
@@ -155,25 +164,38 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def _set_ingredients(self, recipe, ingredients_data):
         bulk = []
-        requested_ids = [int(i['id']) for i in ingredients_data]
-        id_to_obj = {
+        requested_ids = [int(item['id']) for item in ingredients_data]
+        id_to_ingredient = {
             ing.id: ing
             for ing in Ingredient.objects.filter(id__in=requested_ids)
         }
 
-        missing = [iid for iid in requested_ids if iid not in id_to_obj]
+        missing = [
+            ingredient_id
+            for ingredient_id in requested_ids
+            if ingredient_id not in id_to_ingredient
+        ]
         if missing:
             raise serializers.ValidationError(
-                {"ingredients": f"Нет ингредиентов с id: {missing}"})
+                {'ingredients': f'Нет ингредиентов с id: {missing}'})
 
         for item in ingredients_data:
-            ing = id_to_obj[int(item['id'])]
+            ingredient = id_to_ingredient[int(item['id'])]
             amount = int(item['amount'])
-            if amount < 1:
-                raise serializers.ValidationError(
-                    {"ingredients": "Количество должно быть > 0."})
             bulk.append(
                 RecipeIngredient(
-                    recipe=recipe, ingredient=ing, amount=amount)
+                    recipe=recipe, ingredient=ingredient, amount=amount)
             )
         RecipeIngredient.objects.bulk_create(bulk)
+
+
+class FavoriteCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorite
+        fields = ('user', 'recipe')
+
+
+class ShoppingCartCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShoppingCart
+        fields = ('user', 'recipe')

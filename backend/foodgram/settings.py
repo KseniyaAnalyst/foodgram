@@ -120,7 +120,7 @@ MEDIA_ROOT = '/app/media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'users.CustomUser'
+AUTH_USER_MODEL = 'users.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -142,9 +142,9 @@ DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_ID_FIELD': 'id',
     'SERIALIZERS': {
-        'user': 'users.serializers.UserSerializer',
-        'current_user': 'users.serializers.UserSerializer',
-        'user_create': 'users.serializers.UserCreateSerializer',
+        'user': 'api.serializers_users.UserSerializer',
+        'current_user': 'api.serializers_users.UserSerializer',
+        'user_create': 'djoser.serializers.UserCreateSerializer',
     },
     'HIDE_USERS': False,
 }
