@@ -1,10 +1,22 @@
 from django.db import transaction
+from django.core.files.base import ContentFile
 from rest_framework import serializers
+import base64
 
 from recipes.models import (
     Tag, Ingredient, Recipe,
     RecipeIngredient, Favorite, ShoppingCart
 )
+
+
+class Base64ImageField(serializers.ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            header, b64data = data.split(';base64,')
+            file_ext = header.split('/')[-1]
+            decoded = base64.b64decode(b64data)
+            data = ContentFile(decoded, name=f'upload.{file_ext}')
+        return super().to_internal_value(data)
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -23,7 +35,8 @@ class RecipeIngredientReadSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
     measurement_unit = serializers.ReadOnlyField(
-        source='ingredient.measurement_unit')
+        source='ingredient.measurement_unit'
+    )
 
     class Meta:
         model = RecipeIngredient
@@ -37,7 +50,8 @@ class RecipeIngredientWriteSerializer(serializers.Serializer):
     def validate_amount(self, value):
         if value < 1:
             raise serializers.ValidationError(
-                'Количество ингредиента должно быть > 0.')
+                'Количество ингредиента должно быть > 0.'
+            )
         return value
 
 
@@ -61,6 +75,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(
         read_only=True, slug_field='username'
     )
+    image = Base64ImageField()
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(), many=True
     )
@@ -145,7 +160,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         tags = validated_data.pop('tags', [])
         request = self.context.get('request')
         recipe = Recipe.objects.create(
-            author=request.user, **validated_data)
+            author=request.user, **validated_data
+        )
 
         if tags:
             recipe.tags.set(tags)
@@ -186,14 +202,16 @@ class RecipeSerializer(serializers.ModelSerializer):
         ]
         if missing:
             raise serializers.ValidationError(
-                {'ingredients': f'Нет ингредиентов с id: {missing}'})
+                {'ingredients': f'Нет ингредиентов с id: {missing}'}
+            )
 
         for item in ingredients_data:
             ingredient = id_to_ingredient[int(item['id'])]
             amount = int(item['amount'])
             bulk.append(
                 RecipeIngredient(
-                    recipe=recipe, ingredient=ingredient, amount=amount)
+                    recipe=recipe, ingredient=ingredient, amount=amount
+                )
             )
         RecipeIngredient.objects.bulk_create(bulk)
 
