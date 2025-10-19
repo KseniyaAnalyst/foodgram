@@ -30,7 +30,11 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000"
+             gunicorn foodgram.wsgi:application
+               --bind 0.0.0.0:8000
+               --access-logfile -
+               --error-logfile -
+               --log-level debug"
 
   frontend:
     image: ${DOCKER_USERNAME}/foodgram_frontend:latest
