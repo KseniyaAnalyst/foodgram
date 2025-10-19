@@ -1,7 +1,8 @@
 from django.db import transaction
-from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import serializers
 import base64
+import binascii
 
 from recipes.models import (
     Tag, Ingredient, Recipe,
@@ -11,11 +12,46 @@ from recipes.models import (
 
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
+        # Пустые значения отдаём стандартной логике
+        if data in (None, '', b''):
+            return super().to_internal_value(data)
+
         if isinstance(data, str) and data.startswith('data:image'):
-            header, b64data = data.split(';base64,')
-            file_ext = header.split('/')[-1]
-            decoded = base64.b64decode(b64data)
-            data = ContentFile(decoded, name=f'upload.{file_ext}')
+            try:
+                if ';base64,' not in data:
+                    raise serializers.ValidationError('Некорректные данные изображения: нет разделителя ;base64,')
+                header, b64data = data.split(';base64,', 1)
+
+                # вычисляем расширение и content_type
+                try:
+                    mime = header.split(':', 1)[1]  # 'image/png'
+                except Exception:
+                    mime = 'image/jpeg'
+
+                try:
+                    ext = mime.split('/')[-1].lower()  # 'png' | 'jpeg' | 'jpg'
+                    if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+                        ext = 'jpg'
+                except Exception:
+                    ext = 'jpg'
+
+                # строгий декод
+                decoded = base64.b64decode(b64data, validate=True)
+
+                # создаём «настоящий» загруженный файл с content_type
+                upload = SimpleUploadedFile(
+                    name=f'upload.{ext}',
+                    content=decoded,
+                    content_type=mime
+                )
+                data = upload
+            except (binascii.Error, ValueError):
+                raise serializers.ValidationError('Некорректные данные изображения: не удалось декодировать base64')
+            except serializers.ValidationError:
+                raise
+            except Exception:
+                raise serializers.ValidationError('Некорректные данные изображения')
+
         return super().to_internal_value(data)
 
 
