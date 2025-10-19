@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import serializers
 import base64
@@ -10,49 +11,52 @@ from recipes.models import (
 )
 
 
-class Base64ImageField(serializers.ImageField):
-    def to_internal_value(self, data):
-        # Пустые значения отдаём стандартной логике
-        if data in (None, '', b''):
-            return super().to_internal_value(data)
+def decode_data_url(data: str) -> SimpleUploadedFile:
+    """
+    Принимает data URL (data:image/png;base64,....) или «голую» base64-строку.
+    Возвращает SimpleUploadedFile с корректным content_type и именем.
+    """
+    if not isinstance(data, str):
+        raise serializers.ValidationError('Некорректные данные изображения')
 
-        if isinstance(data, str) and data.startswith('data:image'):
-            try:
-                if ';base64,' not in data:
-                    raise serializers.ValidationError('Некорректные данные изображения: нет разделителя ;base64,')
-                header, b64data = data.split(';base64,', 1)
+    # Удаляем пробелы/переносы, которые иногда вставляет фронт
+    data = data.strip()
 
-                # вычисляем расширение и content_type
-                try:
-                    mime = header.split(':', 1)[1]  # 'image/png'
-                except Exception:
-                    mime = 'image/jpeg'
+    mime = 'image/jpeg'
+    ext = 'jpg'
+    b64data = data
 
-                try:
-                    ext = mime.split('/')[-1].lower()  # 'png' | 'jpeg' | 'jpg'
-                    if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-                        ext = 'jpg'
-                except Exception:
-                    ext = 'jpg'
+    if data.startswith('data:image'):
+        if ';base64,' not in data:
+            raise serializers.ValidationError('Некорректные данные изображения: нет ;base64,')
+        header, b64data = data.split(';base64,', 1)
+        try:
+            mime = header.split(':', 1)[1]  # 'image/png'
+        except Exception:
+            mime = 'image/jpeg'
+        try:
+            ext = mime.split('/')[-1].lower()
+            if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+                ext = 'jpg'
+        except Exception:
+            ext = 'jpg'
+    else:
+        # «Голая» base64 без префикса — допустим, как jpeg
+        mime = 'image/jpeg'
+        ext = 'jpg'
 
-                # строгий декод
-                decoded = base64.b64decode(b64data, validate=True)
+    try:
+        # strict decode
+        decoded = base64.b64decode(b64data, validate=True)
+    except (binascii.Error, ValueError):
+        raise serializers.ValidationError('Некорректные данные изображения: не удалось декодировать base64')
 
-                # создаём «настоящий» загруженный файл с content_type
-                upload = SimpleUploadedFile(
-                    name=f'upload.{ext}',
-                    content=decoded,
-                    content_type=mime
-                )
-                data = upload
-            except (binascii.Error, ValueError):
-                raise serializers.ValidationError('Некорректные данные изображения: не удалось декодировать base64')
-            except serializers.ValidationError:
-                raise
-            except Exception:
-                raise serializers.ValidationError('Некорректные данные изображения')
-
-        return super().to_internal_value(data)
+    # создаём «настоящий» загруженный файл с content_type
+    return SimpleUploadedFile(
+        name=f'upload.{ext}',
+        content=decoded,
+        content_type=mime
+    )
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -111,7 +115,9 @@ class RecipeSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(
         read_only=True, slug_field='username'
     )
-    image = Base64ImageField()
+    # Принимаем base64 строку как обычный текст — без строгой проверки DRF ImageField
+    image = serializers.CharField(write_only=True)
+    # Для отдачи наружу вернём URL в этом же поле
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(), many=True
     )
@@ -132,6 +138,17 @@ class RecipeSerializer(serializers.ModelSerializer):
             'is_favorited', 'is_in_shopping_cart', 'pub_date'
         )
         read_only_fields = ('id', 'author', 'pub_date')
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # заменяем поле image на URL
+        request = self.context.get('request')
+        if instance.image:
+            url = instance.image.url
+            data['image'] = request.build_absolute_uri(url) if request else url
+        else:
+            data['image'] = ''
+        return data
 
     def get_is_favorited(self, obj):
         user = self._user()
@@ -190,39 +207,6 @@ class RecipeSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    @transaction.atomic
-    def create(self, validated_data):
-        ingredients_data = validated_data.pop('ingredients', [])
-        tags = validated_data.pop('tags', [])
-        request = self.context.get('request')
-        recipe = Recipe.objects.create(
-            author=request.user, **validated_data
-        )
-
-        if tags:
-            recipe.tags.set(tags)
-
-        self._set_ingredients(recipe, ingredients_data)
-        return recipe
-
-    @transaction.atomic
-    def update(self, instance, validated_data):
-        ingredients_data = validated_data.pop('ingredients', None)
-        tags = validated_data.pop('tags', None)
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        if tags is not None:
-            instance.tags.set(tags)
-
-        if ingredients_data is not None:
-            instance.recipeingredient_set.all().delete()
-            self._set_ingredients(instance, ingredients_data)
-
-        instance.save()
-        return instance
-
     def _set_ingredients(self, recipe, ingredients_data):
         bulk = []
         requested_ids = [int(item['id']) for item in ingredients_data]
@@ -250,6 +234,53 @@ class RecipeSerializer(serializers.ModelSerializer):
                 )
             )
         RecipeIngredient.objects.bulk_create(bulk)
+
+    @transaction.atomic
+    def create(self, validated_data):
+        # Достаём сырой base64 и превращаем в файл
+        image_raw = validated_data.pop('image', None)
+        ingredients_data = validated_data.pop('ingredients', [])
+        tags = validated_data.pop('tags', [])
+        request = self.context.get('request')
+
+        recipe = Recipe.objects.create(
+            author=request.user, **validated_data
+        )
+
+        if image_raw:
+            upload = decode_data_url(image_raw)
+            # сохраняем напрямую, минуя валидацию DRF-поля
+            recipe.image.save(upload.name, ContentFile(upload.read()), save=False)
+
+        if tags:
+            recipe.tags.set(tags)
+
+        self._set_ingredients(recipe, ingredients_data)
+        recipe.save()
+        return recipe
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        image_raw = validated_data.pop('image', None)
+        ingredients_data = validated_data.pop('ingredients', None)
+        tags = validated_data.pop('tags', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if image_raw is not None:
+            upload = decode_data_url(image_raw)
+            instance.image.save(upload.name, ContentFile(upload.read()), save=False)
+
+        if tags is not None:
+            instance.tags.set(tags)
+
+        if ingredients_data is not None:
+            instance.recipeingredient_set.all().delete()
+            self._set_ingredients(instance, ingredients_data)
+
+        instance.save()
+        return instance
 
 
 class FavoriteCreateSerializer(serializers.ModelSerializer):
