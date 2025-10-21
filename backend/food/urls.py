@@ -1,5 +1,4 @@
 from django.urls import path
-
 from food.views import short_link_redirect_view
 
 urlpatterns = [

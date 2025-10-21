@@ -1,8 +1,14 @@
-# build env
-FROM node:21.7.1-alpine
+# сборка
+FROM node:18-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+# игнорируем конфликт пиров, чтобы не трогать пакетные версии
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
 COPY . ./
 RUN npm run build
-CMD cp -r build result_build
+
+# отдача билда (если у тебя уже есть такой этап — оставь свой)
+FROM nginx:1.25-alpine
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx","-g","daemon off;"]

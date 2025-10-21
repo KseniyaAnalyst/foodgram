@@ -12,10 +12,6 @@
 
 
 # def decode_data_url(data: str) -> SimpleUploadedFile:
-#     """
-#     Принимает data URL (data:image/png;base64,....) или «голую» base64-строку.
-#     Возвращает SimpleUploadedFile с корректным content_type и именем.
-#     """
 #     if not isinstance(data, str):
 #         raise serializers.ValidationError('Некорректные данные изображения')
 
@@ -28,7 +24,8 @@
 
 #     if data.startswith('data:image'):
 #         if ';base64,' not in data:
-#             raise serializers.ValidationError('Некорректные данные изображения: нет ;base64,')
+#             raise serializers.ValidationError(
+# 'Некорректные данные изображения: нет ;base64,')
 #         header, b64data = data.split(';base64,', 1)
 #         try:
 #             mime = header.split(':', 1)[1]  # 'image/png'
@@ -49,7 +46,8 @@
 #         # strict decode
 #         decoded = base64.b64decode(b64data, validate=True)
 #     except (binascii.Error, ValueError):
-#         raise serializers.ValidationError('Некорректные данные изображения: не удалось декодировать base64')
+#         raise serializers.ValidationError(
+# 'Некорректные данные изображения: не удалось декодировать base64')
 
 #     # создаём «настоящий» загруженный файл с content_type
 #     return SimpleUploadedFile(
@@ -143,7 +141,8 @@
 #         request = self.context.get('request')
 #         if instance.image:
 #             url = instance.image.url
-#             data['image'] = request.build_absolute_uri(url) if request else url
+#             data['image'] = request.build_absolute_uri(url)
+# if request else url
 #         else:
 #             data['image'] = ''
 #         return data
@@ -248,7 +247,8 @@
 #         if image_raw:
 #             upload = decode_data_url(image_raw)
 #             # сохраняем напрямую, минуя валидацию DRF-поля
-#             recipe.image.save(upload.name, ContentFile(upload.read()), save=False)
+#             recipe.image.save(
+# upload.name, ContentFile(upload.read()), save=False)
 
 #         if tags:
 #             recipe.tags.set(tags)
@@ -268,7 +268,8 @@
 
 #         if image_raw is not None:
 #             upload = decode_data_url(image_raw)
-#             instance.image.save(upload.name, ContentFile(upload.read()), save=False)
+#             instance.image.save(
+# upload.name, ContentFile(upload.read()), save=False)
 
 #         if tags is not None:
 #             instance.tags.set(tags)
@@ -297,7 +298,6 @@ from collections import Counter
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 from rest_framework import serializers
-
 from food.constants import INGREDIENT_MIN_AMOUNT, RECIPE_MIN_COOKING_TIME
 from food.models import (Favorite, Follow, Ingredient, Recipe,
                          RecipeIngredient, ShoppingCartItem, Tag)
