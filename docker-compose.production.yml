@@ -1,4 +1,4 @@
-# Файл docker-compose.production.yml
+version: "3.8"
 
 volumes:
   food_data_prod:
@@ -9,32 +9,43 @@ services:
   food_db:
     image: postgres:13.10
     env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - food_data_prod:/var/lib/postgresql/data
+    restart: always
+
   backend:
-    image: babybeardocker/food_back
+    image: wwwkka/food_back:latest
     env_file: .env
     depends_on:
       - food_db
     volumes:
       - static_volume:/backend_static
       - media_volume:/app/media
+    restart: always
+
   frontend:
-    image: babybeardocker/food_front
-    env_file: .env
-    command: cp -r /app/build/. /frontend_static/
+    image: wwwkka/food_front:latest
+    # Кладём собранный фронт в общий статик-том
+    command: sh -c "cp -r /app/build/. /frontend_static/ || true && nginx -g 'daemon off;'"
     volumes:
       - static_volume:/frontend_static
+    restart: always
+
   gateway:
-    image: babybeardocker/food_gate
+    image: wwwkka/food_gate:latest
     volumes:
       - static_volume:/staticfiles/
       - media_volume:/app/media
       - ./docs:/docs
-    # перенаправление всех запросов с порта 8000 хоста
-    # на порт 80 контейнера
+    # Для домена лучше публиковать 80:80.
+    # Если хочешь оставаться на 8500:80 — замени ниже.
     ports:
-      - 8500:80
+      - "80:80"
     depends_on:
       - backend
+      - frontend
     restart: always
