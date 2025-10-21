@@ -296,14 +296,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
             user=request.user, recipe=recipe)
         if not created:
             raise ValidationError(
-                f'Рецепт с id={recipe.id} уже добавлен в {
-                    model._meta.verbose_name_plural.lower()}.'
+                f'Рецепт с id={recipe.id} уже добавлен в '
+                f'{model._meta.verbose_name_plural.lower()}.'
             )
 
-        return Response(ShortRecipeSerializer(recipe, context={'request': request}).data,
-                        status=status.HTTP_201_CREATED)
+        return Response(ShortRecipeSerializer(
+            recipe, context={'request': request}).data,
+            status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post', 'delete'],
+            permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
         return self.handle_add_or_remove(
             model=ShoppingCartItem, request=request, recipe_id=pk)
