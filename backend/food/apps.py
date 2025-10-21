@@ -1,6 +1,7 @@
+# backend/food/apps.py
 from django.apps import AppConfig
 
 
-class RecipesConfig(AppConfig):
+class ApiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'recipes'
+    name = 'food'
