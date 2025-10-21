@@ -1,4 +1,4 @@
-version: "3.8"
+# docker-compose.production.yml
 
 volumes:
   food_data_prod:
@@ -30,8 +30,16 @@ services:
 
   frontend:
     image: wwwkka/food_front:latest
-    # Кладём собранный фронт в общий статик-том
-    command: sh -c "cp -r /app/build/. /frontend_static/ || true && nginx -g 'daemon off;'"
+    # Копируем билд фронта в общий статик-том и держим контейнер живым
+    command: >
+      sh -c '
+        if [ -d /usr/share/nginx/html ]; then
+          cp -r /usr/share/nginx/html/. /frontend_static/ || true;
+        elif [ -d /app/build ]; then
+          cp -r /app/build/. /frontend_static/ || true;
+        fi;
+        tail -f /dev/null
+      '
     volumes:
       - static_volume:/frontend_static
     restart: always
@@ -42,8 +50,6 @@ services:
       - static_volume:/staticfiles/
       - media_volume:/app/media
       - ./docs:/docs
-    # Для домена лучше публиковать 80:80.
-    # Если хочешь оставаться на 8500:80 — замени ниже.
     ports:
       - "80:80"
     depends_on:
