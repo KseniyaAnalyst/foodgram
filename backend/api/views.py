@@ -125,7 +125,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['get'],
+            permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
         user = request.user
         recipes = Recipe.objects.filter(shoppingcartitems__user=user)
@@ -205,15 +206,22 @@ class UserWithSubscriptionViewSet(UserViewSet):
             if not avatar:
                 raise ValidationError({'avatar': ['Это поле обязательно.']})
 
-            user.avatar = FoodgramUserSerializer(
-                context={'request': request}).fields['avatar'].to_internal_value(avatar)
+            user.avatar = (
+                FoodgramUserSerializer(context={'request': request})
+                .fields['avatar']
+                .to_internal_value(avatar)
+            )
             user.save()
 
-            return Response({'avatar': user.avatar.url if user.avatar else None},
-                            status=status.HTTP_200_OK)
+            return Response(
+                {'avatar': user.avatar.url if user.avatar else None},
+                status=status.HTTP_200_OK)
 
-        if user.avatar and getattr(
-            user.avatar, 'path', None) and os.path.isfile(user.avatar.path):
+        if (
+            user.avatar
+            and getattr(user.avatar, 'path', None)
+            and os.path.isfile(user.avatar.path)
+        ):
             try:
                 os.remove(user.avatar.path)
             except Exception:
@@ -244,7 +252,8 @@ class UserWithSubscriptionViewSet(UserViewSet):
             raise ValidationError(
                 f'Вы уже подписаны на пользователя {author.username}')
 
-        serializer = FollowedUserSerializer(author, context={'request': request})
+        serializer = FollowedUserSerializer(
+            author, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
@@ -255,6 +264,7 @@ class UserWithSubscriptionViewSet(UserViewSet):
         )
         paginator = RecipePagination()
         return paginator.get_paginated_response(
-            FollowedUserSerializer(paginator.paginate_queryset(authors, request),
-                                   many=True, context={'request': request}).data
+            FollowedUserSerializer(
+                paginator.paginate_queryset(authors, request),
+                many=True, context={'request': request}).data
         )
