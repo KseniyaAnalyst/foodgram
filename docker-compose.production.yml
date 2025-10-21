@@ -1,5 +1,3 @@
-# docker-compose.production.yml
-
 volumes:
   food_data_prod:
   static_volume:
@@ -30,7 +28,6 @@ services:
 
   frontend:
     image: wwwkka/food_front:latest
-    # Копируем билд фронта в общий статик-том и держим контейнер живым
     command: >
       sh -c '
         if [ -d /usr/share/nginx/html ]; then

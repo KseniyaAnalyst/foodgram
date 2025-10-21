@@ -1,5 +1,3 @@
-# backend/library/base64ImageField.py
-
 import base64
 import uuid
 

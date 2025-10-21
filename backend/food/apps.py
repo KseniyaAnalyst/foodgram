@@ -1,4 +1,3 @@
-# backend/food/apps.py
 from django.apps import AppConfig
 
 

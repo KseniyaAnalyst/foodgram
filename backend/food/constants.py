@@ -9,5 +9,5 @@ USER_FIRST_NAME_LENGTH = 150
 USER_LAST_NAME_LENGTH = 150
 USER_USERNAME_LENGTH = 150
 
-RECIPE_MIN_COOKING_TIME = 1  # in minutes
-INGREDIENT_MIN_AMOUNT = 1  # minimum amount of ingredient in a recipe
+RECIPE_MIN_COOKING_TIME = 1  # в минутах
+INGREDIENT_MIN_AMOUNT = 1  # минимум ингредиентов в рецепте

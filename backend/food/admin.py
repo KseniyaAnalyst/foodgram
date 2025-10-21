@@ -164,7 +164,6 @@ class RecipeIngredientInline(admin.TabularInline):
     extra = 1
 
 
-# Фильтр по времени готовки с тремя интервалами и подсчётом количества
 class CookingTimeFilter(admin.SimpleListFilter):
     title = 'Время готовки'
     parameter_name = 'cooking_time_bin'
