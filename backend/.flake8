@@ -1,0 +1,9 @@
+[flake8]
+max-line-length = 79
+exclude =
+    env,
+    migrations,
+    __pycache__,
+    manage.py
+# Отключаем isort-проверку импортов
+ignore = I001,I004,I005
