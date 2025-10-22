@@ -144,7 +144,7 @@ class Recipe(models.Model):
         help_text='Загрузите изображение рецепта'
     )
     cooking_time = models.PositiveIntegerField(
-        validators=[MinValueValidator(const.RECIPE_MIN_COOKING_TIME)],
+        MinValueValidator(const.RECIPE_MIN_COOKING_TIME),
         verbose_name='Время (мин)'
     )
     tags = models.ManyToManyField(
