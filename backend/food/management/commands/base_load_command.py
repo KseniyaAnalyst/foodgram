@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand
 
 
 class BaseLoadCommand(BaseCommand):
-    model = None  # установить в дочернем классе
+    model = None
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -34,7 +34,7 @@ class BaseLoadCommand(BaseCommand):
                         f' объектов из файла "{file_path}"'
                     )
                 )
-        except Exception as e:
+        except Exception as err:
             self.stderr.write(self.style.ERROR(
-                f'Ошибка при обработке файла {file_path}: {e}'
+                f'Ошибка при обработке файла {file_path}: {err}'
             ))

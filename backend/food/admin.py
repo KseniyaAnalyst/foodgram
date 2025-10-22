@@ -203,8 +203,8 @@ class CookingTimeFilter(admin.SimpleListFilter):
         return [
             (
                 key,
-                f"{value['label']} "
-                f"({self._range_filter(value['range']).count()})"
+                f'{value["label"]} '
+                f'({self._range_filter(value["range"]).count()})'
             )
             for key, value in self.thresholds.items()
         ]
