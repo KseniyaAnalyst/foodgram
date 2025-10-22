@@ -53,7 +53,6 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    filter_backends = []
     filterset_class = RecipeFilter
     permission_classes = (IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly)
 
