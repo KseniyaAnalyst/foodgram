@@ -1,0 +1,8 @@
+Список покупок для: {{ user.get_full_name|default:user.username }}
+Дата: {{ date }}
+
+Ингредиенты:
+{% for i in ingredients %}- {{ i.ingredient__name }} — {{ i.total_amount }} {{ i.ingredient__measurement_unit }}{% endfor %}
+
+Рецепты:
+{% for r in recipes %}- {{ r.name }}{% endfor %}
