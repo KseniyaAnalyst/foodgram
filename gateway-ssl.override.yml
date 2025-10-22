@@ -1,0 +1,8 @@
+services:
+  gateway:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/default.conf:/etc/nginx/templates/default.conf.template:ro
