@@ -129,9 +129,9 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DJOSER = {
-    "SERIALIZERS": {
-        "user": "api.serializers.FoodgramUserSerializer",
-        "current_user": "api.serializers.FoodgramUserSerializer",
+    'SERIALIZERS': {
+        'user': 'api.serializers.FoodgramUserSerializer',
+        'current_user': 'api.serializers.FoodgramUserSerializer',
     },
     'USER_CREATE_PASSWORD_RETYPE': False,
     'PERMISSIONS': {
