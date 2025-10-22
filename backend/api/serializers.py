@@ -192,7 +192,8 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def validate_tags(self, tags):
         if not tags:
-            raise serializers.ValidationError('Нужно выбрать хотя бы один тег.')
+            raise serializers.ValidationError(
+                'Нужно выбрать хотя бы один тег.')
 
         duplicate_ids = {
             id_
