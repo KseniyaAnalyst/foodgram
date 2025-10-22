@@ -157,15 +157,6 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
         return recipe
 
-    def update(self, instance, validated_data):
-        ingredients_data = validated_data.pop('ingredients', [])
-        tags_data = validated_data.pop('tags', [])
-
-        instance.tags.set(tags_data)
-        instance.ingredients_in_recipe.all().delete()
-        self.create_ingredients(ingredients_data, instance)
-        return super().update(instance, validated_data)
-
     def validate_ingredients(self, ingredients):
         if not ingredients:
             raise serializers.ValidationError(
@@ -204,17 +195,33 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, data):
-        request_method = self.context['request'].method
+        request = self.context.get('request')
+        method = getattr(request, 'method', '').upper() if request else ''
+        is_create = self.instance is None
 
-        if request_method in ('POST', 'PATCH'):
+        if is_create:
             if 'ingredients' not in data:
                 raise serializers.ValidationError(
-                    {'ingredients': 'Это поле обязательно.'})
+                    {'ingredients': 'Это поле обязательно.'}
+                )
             if 'tags' not in data:
                 raise serializers.ValidationError(
-                    {'tags': 'Это поле обязательно.'})
-
+                    {'tags': 'Это поле обязательно.'}
+                )
         return data
+
+    def update(self, instance, validated_data):
+        ingredients_data = validated_data.pop('ingredients', None)
+        tags_data = validated_data.pop('tags', None)
+
+        if tags_data is not None:
+            instance.tags.set(tags_data)
+
+        if ingredients_data is not None:
+            instance.ingredients_in_recipe.all().delete()
+            self.create_ingredients(ingredients_data, instance)
+
+        return super().update(instance, validated_data)
 
 
 class ShortRecipeSerializer(serializers.ModelSerializer):
