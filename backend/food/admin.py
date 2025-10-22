@@ -11,7 +11,7 @@ admin.site.unregister(Group)
 
 
 class HasRelatedObjectsFilter(admin.SimpleListFilter):
-    LOOKUP_CHOICES = [('yes', 'Да'), ('no', 'Нет')]
+    LOOKUP_CHOICES = (('yes', 'Да'), ('no', 'Нет'))
 
     def lookups(self, request, model_admin):
         return self.LOOKUP_CHOICES

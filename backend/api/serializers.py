@@ -26,8 +26,7 @@ class FoodgramUserSerializer(DjoserUserSerializer):
         return (
             request
             and not request.user.is_anonymous
-            and Follow.objects.filter(author=author,
-                                      follower=request.user).exists()
+            and author.author_followes.filter(follower=request.user).exists()
         )
 
 
@@ -76,7 +75,6 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         many=True
     )
     author = FoodgramUserSerializer()
-    tags = TagSerializer(many=True)
 
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
@@ -152,7 +150,6 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
 
-        validated_data['author'] = self.context['request'].user
         recipe = super().create(validated_data)
 
         recipe.tags.set(tags)
@@ -185,7 +182,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             id__in=duplicate_ids).values_list('name', flat=True)
 
         raise serializers.ValidationError(
-            f'Ингредиенты не должны повторяться: {names}.')
+            f'Ингредиенты не должны повторяться: {list(names)}.')
 
     def validate_tags(self, tags):
         if not tags:
@@ -203,7 +200,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         names = (Tag.objects.filter(id__in=duplicate_ids)
                  .values_list('name', flat=True))
         raise serializers.ValidationError(
-            f'Теги не должны повторяться: {names}.'
+            f'Теги не должны повторяться: {list(names)}.'
         )
 
     def validate(self, data):
@@ -227,32 +224,15 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class UserSerializer(DjoserUserSerializer):
-    is_subscribed = serializers.SerializerMethodField()
-
-    def get_is_subscribed(self, followed_user):
-        user = self.context['request'].user
-        return user.is_authenticated and Follow.objects.filter(
-            follower=user, author=followed_user
-        ).exists()
-
-    class Meta:
-        model = User
-        fields = (*DjoserUserSerializer.Meta.fields,
-                  'avatar', 'is_subscribed')
-        read_only_fields = fields
-
-
-class FollowedUserSerializer(UserSerializer):
+class FollowedUserSerializer(FoodgramUserSerializer):
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.IntegerField(
         source='recipes.count',
         read_only=True
     )
 
-    class Meta:
-        model = User
-        fields = (*UserSerializer.Meta.fields,
+    class Meta(FoodgramUserSerializer.Meta):
+        fields = (*FoodgramUserSerializer.Meta.fields,
                   'recipes', 'recipes_count')
         read_only_fields = fields
 
@@ -265,3 +245,18 @@ class FollowedUserSerializer(UserSerializer):
             many=True,
             context=self.context
         ).data
+
+
+class FollowCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Follow
+        fields = ('follower', 'author')
+
+    def validate(self, attrs):
+        follower = attrs['follower']
+        author = attrs['author']
+        if follower == author:
+            raise serializers.ValidationError('Нельзя подписаться на самого себя')
+        if Follow.objects.filter(follower=follower, author=author).exists():
+            raise serializers.ValidationError('Подписка уже существует')
+        return attrs

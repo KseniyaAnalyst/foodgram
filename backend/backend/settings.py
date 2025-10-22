@@ -1,13 +1,9 @@
-import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -146,3 +142,18 @@ DJOSER = {
 }
 
 CSRF_TRUSTED_ORIGINS = ['https://foodgramkka.hopto.org']
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console_stdout': {
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',
+        },
+    },
+    'root': {
+        'handlers': ['console_stdout'],
+        'level': os.getenv('LOG_LEVEL', 'INFO'),
+    },
+}

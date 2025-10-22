@@ -68,7 +68,7 @@ class Follow(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['author', 'follower'],
+                fields=('author', 'follower'),
                 name='unique_author_follower'
             )
         ]
@@ -116,7 +116,7 @@ class Ingredient(models.Model):
         ordering = ('name',)
         constraints = [
             models.UniqueConstraint(
-                fields=['name', 'measurement_unit'],
+                fields=('name', 'measurement_unit'),
                 name='unique_ingredient'
             )
         ]
@@ -149,18 +149,19 @@ class Recipe(models.Model):
     )
     tags = models.ManyToManyField(
         'Tag',
+        verbose_name='Теги'
     )
     ingredients = models.ManyToManyField(
         'Ingredient',
         through='RecipeIngredient',
-        related_name='recipes'
+        related_name='recipes',
+        verbose_name='Продукты'
     )
 
     class Meta:
         default_related_name = 'recipes'
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
-        ordering = ['-id']
 
     def __str__(self):
         return self.name
@@ -180,8 +181,9 @@ class RecipeIngredient(models.Model):
         verbose_name='Продукт'
     )
     amount = models.PositiveSmallIntegerField(
-        verbose_name='Мера',
-        help_text='Мера продукта в рецепте'
+        validators=[MinValueValidator(const.INGREDIENT_MIN_AMOUNT)],
+        verbose_name='Количество',
+        help_text='Количество продукта в рецепте'
     )
 
     class Meta:
@@ -189,10 +191,14 @@ class RecipeIngredient(models.Model):
         verbose_name_plural = 'Продукты в рецепте'
         constraints = [
             models.UniqueConstraint(
-                fields=['recipe', 'ingredient'],
+                fields=('recipe', 'ingredient'),
                 name='unique_recipe_ingredient'
             )
         ]
+
+    def __str__(self):
+        return (f'{self.ingredient.name} — {self.amount} '
+                f'{self.ingredient.measurement_unit} в "{self.recipe.name}"')
 
 
 class UserRecipeRelationBase(models.Model):
@@ -213,7 +219,7 @@ class UserRecipeRelationBase(models.Model):
         abstract = True
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'recipe'],
+                fields=('user', 'recipe'),
                 name='%(class)s_unique_user_recipe'
             )
         ]

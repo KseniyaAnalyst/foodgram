@@ -1,5 +1,15 @@
 from django_filters import rest_framework as filters
-from food.models import Recipe, Tag
+from django_filters.filterset import FilterSet
+from django_filters.filters import CharFilter
+from food.models import Ingredient, Recipe, Tag
+
+
+class IngredientFilter(FilterSet):
+    name = CharFilter(field_name='name', lookup_expr='istartswith')
+
+    class Meta:
+        model = Ingredient
+        fields = ('name',)
 
 
 class RecipeFilter(filters.FilterSet):
@@ -16,12 +26,11 @@ class RecipeFilter(filters.FilterSet):
 
     class Meta:
         model = Recipe
-        fields = ['author', 'tags']
+        fields = ('author', 'tags')
 
     def filter_is_favorited(self, recipes, name, value):
         user = self.request.user
         if value and not user.is_anonymous:
-
             return recipes.filter(favorites__user=user)
         return recipes
 
