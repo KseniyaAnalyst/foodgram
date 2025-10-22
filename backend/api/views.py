@@ -2,7 +2,6 @@ import os
 
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.db.models import Exists, OuterRef
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -13,7 +12,8 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError, NotFound
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import (
-    AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly)
+    AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
+)
 from rest_framework.response import Response
 
 from api.filters import RecipeFilter, IngredientFilter
@@ -31,8 +31,8 @@ from api.serializers import (
 )
 from food.models import (
     Favorite, Follow, Ingredient, Recipe,
-    RecipeIngredient, ShoppingCartItem, Tag)
-
+    RecipeIngredient, ShoppingCartItem, Tag
+)
 
 User = get_user_model()
 
@@ -77,12 +77,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
             raise NotFound(f'Рецепт с id={pk} не найден.')
         return Response(
             {'short-link': request.build_absolute_uri(
-                reverse('recipe-short-link', args=[pk]))},
+                reverse('recipe-short-link', args=[pk])
+            )},
             status=status.HTTP_200_OK,
         )
 
-    @action(detail=False, methods=('put',), url_path='me/avatar',
-            permission_classes=(AllowAny,))
+    @action(
+        detail=False,
+        methods=('put',),
+        url_path='me/avatar',
+        permission_classes=(AllowAny,),
+    )
     def set_image(self, request):
         recipe = getattr(request, 'recipe', None)
         image = request.data.get('image')
@@ -96,7 +101,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         old_image_path = recipe.image.path if recipe.image else None
 
         recipe.image = (
-            RecipeReadSerializer().fields['image'].to_internal_value(image))
+            RecipeReadSerializer().fields['image'].to_internal_value(image)
+        )
         recipe.save()
 
         if old_image_path and os.path.isfile(old_image_path):
@@ -106,8 +112,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
 
-        return Response({'image': recipe.image.url if recipe.image else None},
-                        status=status.HTTP_200_OK)
+        return Response(
+            {'image': recipe.image.url if recipe.image else None},
+            status=status.HTTP_200_OK
+        )
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -133,8 +141,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             },
         )
 
-        response = HttpResponse(content, content_type='text/plain; charset=utf-8')
-        response['Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
+        response = HttpResponse(content,
+                                content_type='text/plain; charset=utf-8')
+        response['Content-Disposition'] = (
+            'attachment; filename="shopping_list.txt"')
         return response
 
     def handle_add_or_remove(self, *, model, recipe, request):
@@ -145,35 +155,38 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
 
         if request.method == 'DELETE':
-            get_object_or_404(model, user=request.user,
-                              recipe=recipe).delete()
+            get_object_or_404(model, user=request.user, recipe=recipe).delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
         obj, created = model.objects.get_or_create(
-            user=request.user, recipe=recipe)
+            user=request.user, recipe=recipe
+        )
         if not created:
             collection_name = model._meta.verbose_name_plural.lower()
             raise ValidationError(
                 f'Рецепт с id={recipe.id} уже добавлен в {collection_name}.'
             )
 
-        return Response(ShortRecipeSerializer(
-            recipe, context={'request': request}).data,
-            status=status.HTTP_201_CREATED)
+        return Response(
+            ShortRecipeSerializer(recipe, context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
 
     @action(detail=True, methods=('post', 'delete'),
             permission_classes=(IsAuthenticated,))
     def shopping_cart(self, request, pk=None):
         recipe = self.get_object()
         return self.handle_add_or_remove(
-            model=ShoppingCartItem, request=request, recipe=recipe)
+            model=ShoppingCartItem, request=request, recipe=recipe
+        )
 
     @action(detail=True, methods=('post', 'delete'),
             permission_classes=(IsAuthenticated,))
     def favorite(self, request, pk=None):
         recipe = self.get_object()
-        return self.handle_add_or_remove(model=Favorite,
-                                         recipe=recipe, request=request)
+        return self.handle_add_or_remove(
+            model=Favorite, recipe=recipe, request=request
+        )
 
 
 class UserWithSubscriptionViewSet(UserViewSet):
@@ -200,10 +213,12 @@ class UserWithSubscriptionViewSet(UserViewSet):
 
             return Response(
                 {'avatar': user.avatar.url if user.avatar else None},
-                status=status.HTTP_200_OK)
+                status=status.HTTP_200_OK
+            )
 
         old_path = user.avatar.path if (
-            user.avatar and getattr(user.avatar, 'path', None)) else None
+            user.avatar and getattr(user.avatar, 'path', None)
+        ) else None
         if old_path and os.path.isfile(old_path):
             try:
                 os.remove(old_path)
@@ -221,8 +236,9 @@ class UserWithSubscriptionViewSet(UserViewSet):
         user = request.user
 
         if request.method == 'DELETE':
-            get_object_or_404(Follow, follower=request.user,
-                              author_id=pk).delete()
+            get_object_or_404(
+                Follow, follower=request.user, author_id=pk
+            ).delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
         author = get_object_or_404(User, pk=pk)
@@ -239,16 +255,22 @@ class UserWithSubscriptionViewSet(UserViewSet):
         out = FollowedUserSerializer(author, context={'request': request})
         return Response(out.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=('get',),
-            permission_classes=(IsAuthenticated,))
+    @action(
+        detail=False,
+        methods=('get',),
+        permission_classes=(IsAuthenticated,),
+    )
     def subscriptions(self, request):
         authors = User.objects.filter(
             pk__in=Follow.objects.filter(
-                follower=request.user).values_list('author__id', flat=True)
+                follower=request.user
+            ).values_list('author__id', flat=True)
         )
         paginator = RecipePagination()
         return paginator.get_paginated_response(
             FollowedUserSerializer(
                 paginator.paginate_queryset(authors, request),
-                many=True, context={'request': request}).data
+                many=True,
+                context={'request': request},
+            ).data
         )

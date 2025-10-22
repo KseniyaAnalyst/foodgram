@@ -8,4 +8,6 @@ class IsAuthorOrReadOnly(permissions.BasePermission):
         return (
             request.method in SAFE_METHODS
             or obj.author == request.user
+            or getattr(request.user, "is_staff", False)
+            or getattr(request.user, "is_superuser", False)
         )
